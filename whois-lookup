@@ -1,0 +1,238 @@
+import { useState } from 'react'
+import { Button } from "/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "/components/ui/card"
+import { Input } from "/components/ui/input"
+import { Label } from "/components/ui/label"
+import { Loader2 } from "lucide-react"
+
+// Replace with your actual API key (consider environment variables in production)
+const API_KEY = 'your_free_api_key_from_whoisxmlapi'
+const API_URL = 'https://www.whoisxmlapi.com/whoisserver/WhoisService'
+
+export default function WhoisLookup() {
+  const [domain, setDomain] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [result, setResult] = useState<any>(null)
+  const [searchHistory, setSearchHistory] = useState<string[]>([])
+
+  // Basic domain validation regex
+  const validateDomain = (input: string) => {
+    const regex = /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9][a-z0-9-]{0,61}[a-z0-9]$/i
+    return regex.test(input)
+  }
+
+  const fetchWhoisData = async (domain: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}?apiKey=${API_KEY}&domainName=${domain}&outputFormat=JSON`
+      )
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.ErrorMessage) {
+        throw new Error(data.ErrorMessage.error)
+      }
+      
+      return data.WhoisRecord || {}
+    } catch (err) {
+      console.error('Error fetching WHOIS data:', err)
+      throw err
+    }
+  }
+
+  const handleSearch = async () => {
+    if (!domain) {
+      setError('Please enter a domain name')
+      return
+    }
+
+    if (!validateDomain(domain)) {
+      setError('Please enter a valid domain name (e.g., example.com)')
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+    setResult(null)
+    
+    try {
+      const data = await fetchWhoisData(domain)
+      
+      setResult(data)
+      // Add to search history
+      setSearchHistory(prev => [...new Set([domain, ...prev])].slice(0, 5))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch WHOIS data')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZoneName: 'short'
+    })
+  }
+
+  // Extract registrar from WHOIS data
+  const getRegistrar = (data: any) => {
+    return data?.registrarName || 
+           data?.registryData?.registrar || 
+           'N/A'
+  }
+
+  // Extract name servers from WHOIS data
+  const getNameServers = (data: any) => {
+    return data?.nameServers?.hostNames || 
+           data?.registryData?.nameServers?.hostNames || 
+           []
+  }
+
+  // Extract status from WHOIS data
+  const getStatus = (data: any) => {
+    return data?.status || 
+           data?.registryData?.status || 
+           []
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">
+              WHOIS Domain Lookup
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="domain" className="block mb-2">
+                  Domain Name
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="domain"
+                    type="text"
+                    placeholder="example.com"
+                    value={domain}
+                    onChange={(e) => setDomain(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                    className="flex-1"
+                  />
+                  <Button onClick={handleSearch} disabled={isLoading}>
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Searching...
+                      </>
+                    ) : (
+                      'Search'
+                    )}
+                  </Button>
+                </div>
+                {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+              </div>
+
+              {searchHistory.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Recent searches:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {searchHistory.map((item, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDomain(item)}
+                      >
+                        {item}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {result && (
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-lg font-medium">WHOIS Results for {result.domainName || domain}</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Registrar</p>
+                      <p>{getRegistrar(result)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Creation Date</p>
+                      <p>{formatDate(result.createdDate)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Expiry Date</p>
+                      <p>{formatDate(result.expiresDate)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Updated Date</p>
+                      <p>{formatDate(result.updatedDate)}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Domain Status</p>
+                    <div className="flex flex-wrap gap-2">
+                      {getStatus(result).length > 0 ? (
+                        getStatus(result).map((status: string, index: number) => (
+                          <span key={index} className="px-2 py-1 bg-gray-100 rounded text-sm">
+                            {status}
+                          </span>
+                        ))
+                      ) : (
+                        <p>N/A</p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">Name Servers</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {getNameServers(result).length > 0 ? (
+                        getNameServers(result).map((server: string, index: number) => (
+                          <div key={index} className="p-2 bg-gray-100 rounded">
+                            {server}
+                          </div>
+                        ))
+                      ) : (
+                        <p>N/A</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {result.registryData?.whoisServer && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">WHOIS Server</p>
+                      <p>{result.registryData.whoisServer}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="mt-8 text-center text-sm text-muted-foreground">
+          <p>This tool provides domain registration information from WHOISXMLAPI.com.</p>
+          <p className="mt-1">Free tier limited to 1000 requests/month.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
