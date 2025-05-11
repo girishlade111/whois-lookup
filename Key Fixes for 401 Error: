@@ -1,0 +1,59 @@
+Key Fixes for 401 Error:
+Proper API Key Setup:
+
+Get a valid API key from whoisxmlapi.com
+For development, you can use their test key: at_test123 (but will only return mock data)
+For production, sign up for a free account (1000 requests/month)
+
+Environment Variables (Recommended):
+
+"
+# .env.local
+NEXT_PUBLIC_WHOIS_API_KEY=your_actual_key_here
+"
+
+Enhanced Error Handling:
+
+Specific messages for 401 (invalid key) and 429 (rate limit) errors
+Better response status checking
+Proper API Request Format:
+
+Using URLSearchParams for correct parameter encoding
+Added Accept header for JSON responses
+
+Common Solutions for 401 Errors:
+Invalid/Expired API Key:
+
+Verify your key at whoisxmlapi.com account dashboard
+Regenerate if necessary
+Incorrect Parameter Name:
+
+WHOISXMLAPI expects apiKey (case-sensitive)
+Some services use key or token
+Missing Parameters:
+
+Ensure all required params are included:
+
+"
+{
+  apiKey: 'your_key',
+  domainName: 'example.com',
+  outputFormat: 'JSON'
+}
+"
+
+IP Restrictions:
+
+Check if your API key has IP restrictions
+Some services require whitelisting your server IP
+
+Testing Your API Key:
+You can verify your key works by making a direct request:
+
+curl "https://www.whoisxmlapi.com/whoisserver/WhoisService?apiKey=YOUR_KEY&domainName=google.com&outputFormat=JSON"
+Remember to never expose your API key in client-side code in production. For a production app, you should:
+
+Create a backend proxy endpoint
+Store the API key server-side
+Have your frontend call your own endpoint
+Would you like me to show you the backend proxy implementation as well? This would be the most secure approach for a production application.
