@@ -117,3 +117,7 @@ Create a backend proxy endpoint
 Store the API key server-side
 Have your frontend call your own endpoint
 Would you like me to show you the backend proxy implementation as well? This would be the most secure approach for a production application.
+
+---
+
+*Built by Girish Lade — [ladestack.in](https://ladestack.in)*
